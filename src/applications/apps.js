@@ -88,6 +88,20 @@ export function getAppStatus(appName) {
   return app ? app.status : null;
 }
 
+/**
+ * 注册应用，两种方式
+ * registerApplication('app1', loadApp(url), activeWhen('/app1'), customProps)
+ * registerApplication({
+ *    name: 'app1',
+ *    app: loadApp(url),
+ *    activeWhen: activeWhen('/app1'),
+ *    customProps: {}
+ * })
+ * @param {*} appNameOrConfig 应用名称或者应用配置对象
+ * @param {*} appOrLoadApp 应用的加载方法，是一个 promise
+ * @param {*} activeWhen 判断应用是否激活的一个方法，方法返回 true or false
+ * @param {*} customProps 传递给子应用的 props 对象
+ */
 export function registerApplication(
   appNameOrConfig,
   appOrLoadApp,
@@ -101,16 +115,11 @@ export function registerApplication(
     customProps
   );
 
-  if (getAppNames().indexOf(registration.name) !== -1)
-    throw Error(
-      formatErrorMessage(
-        21,
-        __DEV__ &&
-          `There is already an app registered with name ${registration.name}`,
-        registration.name
-      )
-    );
+  /** 判断 name 是否已经存在了，如果存在 报错
+   * ...
+   */
 
+  // 添加进入 app
   apps.push(
     assign(
       {
@@ -128,6 +137,7 @@ export function registerApplication(
     )
   );
 
+  // 浏览器
   if (isInBrowser) {
     ensureJQuerySupport();
     reroute();
@@ -226,126 +236,15 @@ function immediatelyUnloadApp(app, resolve, reject) {
     .catch(reject);
 }
 
-function validateRegisterWithArguments(
-  name,
-  appOrLoadApp,
-  activeWhen,
-  customProps
-) {
-  if (typeof name !== "string" || name.length === 0)
-    throw Error(
-      formatErrorMessage(
-        20,
-        __DEV__ &&
-          `The 1st argument to registerApplication must be a non-empty string 'appName'`
-      )
-    );
-
-  if (!appOrLoadApp)
-    throw Error(
-      formatErrorMessage(
-        23,
-        __DEV__ &&
-          "The 2nd argument to registerApplication must be an application or loading application function"
-      )
-    );
-
-  if (typeof activeWhen !== "function")
-    throw Error(
-      formatErrorMessage(
-        24,
-        __DEV__ &&
-          "The 3rd argument to registerApplication must be an activeWhen function"
-      )
-    );
-
-  if (!validCustomProps(customProps))
-    throw Error(
-      formatErrorMessage(
-        22,
-        __DEV__ &&
-          "The optional 4th argument is a customProps and must be an object"
-      )
-    );
-}
-
-export function validateRegisterWithConfig(config) {
-  if (Array.isArray(config) || config === null)
-    throw Error(
-      formatErrorMessage(
-        39,
-        __DEV__ && "Configuration object can't be an Array or null!"
-      )
-    );
-  const validKeys = ["name", "app", "activeWhen", "customProps"];
-  const invalidKeys = Object.keys(config).reduce(
-    (invalidKeys, prop) =>
-      validKeys.indexOf(prop) >= 0 ? invalidKeys : invalidKeys.concat(prop),
-    []
-  );
-  if (invalidKeys.length !== 0)
-    throw Error(
-      formatErrorMessage(
-        38,
-        __DEV__ &&
-          `The configuration object accepts only: ${validKeys.join(
-            ", "
-          )}. Invalid keys: ${invalidKeys.join(", ")}.`,
-        validKeys.join(", "),
-        invalidKeys.join(", ")
-      )
-    );
-  if (typeof config.name !== "string" || config.name.length === 0)
-    throw Error(
-      formatErrorMessage(
-        20,
-        __DEV__ &&
-          "The config.name on registerApplication must be a non-empty string"
-      )
-    );
-  if (typeof config.app !== "object" && typeof config.app !== "function")
-    throw Error(
-      formatErrorMessage(
-        20,
-        __DEV__ &&
-          "The config.app on registerApplication must be an application or a loading function"
-      )
-    );
-  const allowsStringAndFunction = (activeWhen) =>
-    typeof activeWhen === "string" || typeof activeWhen === "function";
-  if (
-    !allowsStringAndFunction(config.activeWhen) &&
-    !(
-      Array.isArray(config.activeWhen) &&
-      config.activeWhen.every(allowsStringAndFunction)
-    )
-  )
-    throw Error(
-      formatErrorMessage(
-        24,
-        __DEV__ &&
-          "The config.activeWhen on registerApplication must be a string, function or an array with both"
-      )
-    );
-  if (!validCustomProps(config.customProps))
-    throw Error(
-      formatErrorMessage(
-        22,
-        __DEV__ && "The optional config.customProps must be an object"
-      )
-    );
-}
-
-function validCustomProps(customProps) {
-  return (
-    !customProps ||
-    typeof customProps === "function" ||
-    (typeof customProps === "object" &&
-      customProps !== null &&
-      !Array.isArray(customProps))
-  );
-}
-
+/**
+ * appNameOrConfig 通过判断是不是 object
+ * 来判断参数使用
+ * @param {*} appNameOrConfig 
+ * @param {*} appOrLoadApp 
+ * @param {*} activeWhen 
+ * @param {*} customProps 
+ * @returns 
+ */
 function sanitizeArguments(
   appNameOrConfig,
   appOrLoadApp,
@@ -362,43 +261,27 @@ function sanitizeArguments(
   };
 
   if (usingObjectAPI) {
-    validateRegisterWithConfig(appNameOrConfig);
     registration.name = appNameOrConfig.name;
     registration.loadApp = appNameOrConfig.app;
     registration.activeWhen = appNameOrConfig.activeWhen;
     registration.customProps = appNameOrConfig.customProps;
   } else {
-    validateRegisterWithArguments(
-      appNameOrConfig,
-      appOrLoadApp,
-      activeWhen,
-      customProps
-    );
     registration.name = appNameOrConfig;
     registration.loadApp = appOrLoadApp;
     registration.activeWhen = activeWhen;
     registration.customProps = customProps;
   }
 
-  registration.loadApp = sanitizeLoadApp(registration.loadApp);
-  registration.customProps = sanitizeCustomProps(registration.customProps);
   registration.activeWhen = sanitizeActiveWhen(registration.activeWhen);
 
   return registration;
 }
 
-function sanitizeLoadApp(loadApp) {
-  if (typeof loadApp !== "function") {
-    return () => Promise.resolve(loadApp);
-  }
-
-  return loadApp;
-}
-
-function sanitizeCustomProps(customProps) {
-  return customProps ? customProps : {};
-}
-
+/**
+ * 转为一个 (location) => boolean 方法
+ * @param { Array<string|function> } activeWhen
+ * @returns 
+ */
 function sanitizeActiveWhen(activeWhen) {
   let activeWhenArray = Array.isArray(activeWhen) ? activeWhen : [activeWhen];
   activeWhenArray = activeWhenArray.map((activeWhenOrPath) =>
@@ -411,7 +294,15 @@ function sanitizeActiveWhen(activeWhen) {
     activeWhenArray.some((activeWhen) => activeWhen(location));
 }
 
+/**
+ * 简单来说 将 path 转为正则
+ * 然后使用 path.test(route);
+ * @param {*} path 
+ * @param {*} exactMatch 
+ * @returns 
+ */
 export function pathToActiveWhen(path, exactMatch) {
+  // 将 path 字符串 转换为了对应可以匹配的正则表达式。
   const regex = toDynamicPathValidatorRegex(path, exactMatch);
 
   return (location) => {
@@ -426,63 +317,4 @@ export function pathToActiveWhen(path, exactMatch) {
       .split("?")[0];
     return regex.test(route);
   };
-}
-
-function toDynamicPathValidatorRegex(path, exactMatch) {
-  let lastIndex = 0,
-    inDynamic = false,
-    regexStr = "^";
-
-  if (path[0] !== "/") {
-    path = "/" + path;
-  }
-
-  for (let charIndex = 0; charIndex < path.length; charIndex++) {
-    const char = path[charIndex];
-    const startOfDynamic = !inDynamic && char === ":";
-    const endOfDynamic = inDynamic && char === "/";
-    if (startOfDynamic || endOfDynamic) {
-      appendToRegex(charIndex);
-    }
-  }
-
-  appendToRegex(path.length);
-  return new RegExp(regexStr, "i");
-
-  function appendToRegex(index) {
-    const anyCharMaybeTrailingSlashRegex = "[^/]+/?";
-    const commonStringSubPath = escapeStrRegex(path.slice(lastIndex, index));
-
-    regexStr += inDynamic
-      ? anyCharMaybeTrailingSlashRegex
-      : commonStringSubPath;
-
-    if (index === path.length) {
-      if (inDynamic) {
-        if (exactMatch) {
-          // Ensure exact match paths that end in a dynamic portion don't match
-          // urls with characters after a slash after the dynamic portion.
-          regexStr += "$";
-        }
-      } else {
-        // For exact matches, expect no more characters. Otherwise, allow
-        // any characters.
-        const suffix = exactMatch ? "" : ".*";
-
-        regexStr =
-          // use charAt instead as we could not use es6 method endsWith
-          regexStr.charAt(regexStr.length - 1) === "/"
-            ? `${regexStr}${suffix}$`
-            : `${regexStr}(/${suffix})?(#.*)?$`;
-      }
-    }
-
-    inDynamic = !inDynamic;
-    lastIndex = index;
-  }
-
-  function escapeStrRegex(str) {
-    // borrowed from https://github.com/sindresorhus/escape-string-regexp/blob/master/index.js
-    return str.replace(/[|\\{}()[\]^$+*?.]/g, "\\$&");
-  }
 }

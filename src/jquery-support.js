@@ -2,6 +2,11 @@ import { routingEventsListeningTo } from "./navigation/navigation-events.js";
 
 let hasInitialized = false;
 
+/**
+ * 如果使用了 jQuery
+ * 增加 jQuery 支持
+ * @param {*} jQuery 
+ */
 export function ensureJQuerySupport(jQuery = window.jQuery) {
   if (!jQuery) {
     if (window.$ && window.$.fn && window.$.fn.jquery) {
