@@ -8,6 +8,8 @@ import { isStarted } from "../start.js";
  * that application navigation listeners are not called until
  * single-spa has ensured that the correct applications are
  * unmounted and mounted.
+ * 我们捕获导航事件侦听器，
+ * 这样我们就可以确保在single-spa确保正确的应用程序被卸载和挂载之前不会调用应用程序导航侦听器。
  */
 const capturedEventListeners = {
   hashchange: [],
@@ -16,6 +18,12 @@ const capturedEventListeners = {
 
 export const routingEventsListeningTo = ["hashchange", "popstate"];
 
+/**
+ * 会通过 obj 参数，确定 url 是什么
+ * 然后修改 window.location 或者使用 window.history.pushState 更新
+ * @param {*} obj 
+ * @returns 
+ */
 export function navigateToUrl(obj) {
   let url;
   if (typeof obj === "string") {
@@ -44,8 +52,10 @@ export function navigateToUrl(obj) {
   const destination = parseUri(url);
 
   if (url.indexOf("#") === 0) {
+    // url只有hash 直接赋值 hash
     window.location.hash = destination.hash;
   } else if (current.host !== destination.host && destination.host) {
+    // 两次的 host 不相等
     if (process.env.BABEL_ENV === "test") {
       return { wouldHaveReloadedThePage: true };
     } else {
@@ -55,13 +65,19 @@ export function navigateToUrl(obj) {
     destination.pathname === current.pathname &&
     destination.search === current.search
   ) {
+    // 只有 hash 不相等
     window.location.hash = destination.hash;
   } else {
     // different path, host, or query params
+    // 都不想等，直接 pushState
     window.history.pushState(null, null, url);
   }
 }
 
+/**
+ * 调用 listener
+ * @param {*} eventArguments 
+ */
 export function callCapturedEventListeners(eventArguments) {
   if (eventArguments) {
     const eventType = eventArguments[0].type;
@@ -136,6 +152,7 @@ function createPopStateEvent(state, originalMethodName) {
   return evt;
 }
 
+// 全局一开始就执行监听
 if (isInBrowser) {
   // We will trigger an app change for any routing events.
   window.addEventListener("hashchange", urlReroute);
@@ -150,6 +167,7 @@ if (isInBrowser) {
         routingEventsListeningTo.indexOf(eventName) >= 0 &&
         !find(capturedEventListeners[eventName], (listener) => listener === fn)
       ) {
+        // 对 eventName 增加了这个监听的存储
         capturedEventListeners[eventName].push(fn);
         return;
       }
@@ -196,6 +214,11 @@ if (isInBrowser) {
   }
 }
 
+/**
+ * 创建 a 标签 DOM
+ * @param {*} str 
+ * @returns 
+ */
 function parseUri(str) {
   const anchor = document.createElement("a");
   anchor.href = str;

@@ -34,6 +34,14 @@ export function triggerAppChange() {
   return reroute();
 }
 
+// TODO registerApplication 的 reroute 方法查看
+/**
+ * 启动方法
+ * 主要是调用 performAppChanges 和 loadApps 方法
+ * @param {*} pendingPromises 
+ * @param {*} eventArguments 事件参数。
+ * @returns 
+ */
 export function reroute(pendingPromises = [], eventArguments) {
   if (appChangeUnderway) {
     return new Promise((resolve, reject) => {
@@ -50,7 +58,7 @@ export function reroute(pendingPromises = [], eventArguments) {
     appsToUnmount,
     appsToLoad,
     appsToMount,
-  } = getAppChanges();
+  } = getAppChanges(); // 里面通过 window.location 判断哪些app会被启动
   let appsThatChanged,
     navigationIsCanceled = false,
     oldUrl = currentUrl,
@@ -73,6 +81,10 @@ export function reroute(pendingPromises = [], eventArguments) {
     navigationIsCanceled = true;
   }
 
+  /**
+   * 就是 load appsToLoad
+   * @returns 
+   */
   function loadApps() {
     return Promise.resolve().then(() => {
       const loadPromises = appsToLoad.map(toLoadPromise);
@@ -90,9 +102,21 @@ export function reroute(pendingPromises = [], eventArguments) {
     });
   }
 
+  /**
+   * 说明是第一次 要先派发很多事件，然后
+   * appsToLoad 、 appsToMount 数组的调用
+   * 派发了 事件
+   * single-spa:before-no-app-change | single-spa:before-app-change
+   * single-spa:before-routing-event
+   * | single-spa:before-mount-routing-event
+   * 
+   * 
+   * @returns 
+   */
   function performAppChanges() {
     return Promise.resolve().then(() => {
       // https://github.com/single-spa/single-spa/issues/545
+      // dispatchEvent 是派发事件，需要提前有 addEventListener 监听
       window.dispatchEvent(
         new CustomEvent(
           appsThatChanged.length === 0
@@ -180,6 +204,13 @@ export function reroute(pendingPromises = [], eventArguments) {
     });
   }
 
+  /**
+   * 执行 pendingPromises resolve(Array<MountedApps>)
+   * 派发监听
+   * single-spa:no-app-change | single-spa:app-change
+   * single-spa:routing-event
+   * @returns 
+   */
   function finishUpAndReturn() {
     const returnValue = getMountedApps();
     pendingPromises.forEach((promise) => promise.resolve(returnValue));
@@ -229,6 +260,10 @@ export function reroute(pendingPromises = [], eventArguments) {
    * the current run of performAppChanges(), but also all of the queued event listeners.
    * We want to call the listeners in the same order as if they had not been delayed by
    * single-spa, which means queued ones first and then the most recent one.
+   * 我们需要调用所有因等待single-spa而延迟的事件侦听器。
+   * 这包括当前运行的performAppChanges()的haschange和popstate事件，
+   * 以及所有排队的事件侦听器。我们希望以相同的顺序调用侦听器，
+   * 就好像它们没有被单spa延迟一样，这意味着先排队的侦听器，然后是最近的侦听器。
    */
   function callAllEventListeners() {
     pendingPromises.forEach((pendingPromise) => {
@@ -238,8 +273,18 @@ export function reroute(pendingPromises = [], eventArguments) {
     callCapturedEventListeners(eventArguments);
   }
 
+  /**
+   * 这个主要好像是整合更新后 apps 的状态作为 newAppStatuses appsByNewStatus 返回
+   * 以及
+   * @param {*} isBeforeChanges 
+   * @param {*} extraProperties 会覆盖 返回的 detail 
+   * @returns { { detail: { newAppStatuses, appsByNewStatus, totalAppChanges: appsThatChanged.length, originalEvent: eventArguments[0], oldUrl, newUrl, navigationIsCanceled, } } }
+   */
   function getCustomEventDetail(isBeforeChanges = false, extraProperties) {
+    // 这里有两个，这两个是两个相反的映射
+    /** 这个是 name 映射 status  */
     const newAppStatuses = {};
+    /**这个是 status 映射 name */
     const appsByNewStatus = {
       // for apps that were mounted
       [MOUNTED]: [],
@@ -251,13 +296,17 @@ export function reroute(pendingPromises = [], eventArguments) {
       [SKIP_BECAUSE_BROKEN]: [],
     };
 
+    // 这里应该是更新状态
     if (isBeforeChanges) {
+      // toMount 将会变成 mounted
       appsToLoad.concat(appsToMount).forEach((app, index) => {
         addApp(app, MOUNTED);
       });
+      // toUnload 将会变成 not-loaded
       appsToUnload.forEach((app) => {
         addApp(app, NOT_LOADED);
       });
+      // toUnmount 将会变成 not-mounted
       appsToUnmount.forEach((app) => {
         addApp(app, NOT_MOUNTED);
       });
@@ -285,6 +334,11 @@ export function reroute(pendingPromises = [], eventArguments) {
 
     return result;
 
+    /**
+     * add 到 appsByNewStatus 里面 
+     * @param {*} app 
+     * @param {*} status 
+     */
     function addApp(app, status) {
       const appName = toName(app);
       status = status || getAppStatus(appName);
