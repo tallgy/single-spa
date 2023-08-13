@@ -25,6 +25,11 @@ import { assign } from "../utils/assign";
 
 const apps = [];
 
+/**
+ * 每次调用方法都会获取所有 apps
+ * 的对应 status 信息。
+ * @returns { {appsToUnload: Array<app>,appsToUnmount: Array<app>,appsToLoad: Array<app>,appsToMount: Array<app>} }
+ */
 export function getAppChanges() {
   const appsToUnload = [],
     appsToUnmount = [],
@@ -70,6 +75,10 @@ export function getAppChanges() {
   return { appsToUnload, appsToUnmount, appsToLoad, appsToMount };
 }
 
+/**
+ * 获取激活的app status === mounted
+ * @returns 
+ */
 export function getMountedApps() {
   return apps.filter(isActive).map(toName);
 }
@@ -97,10 +106,10 @@ export function getAppStatus(appName) {
  *    activeWhen: activeWhen('/app1'),
  *    customProps: {}
  * })
- * @param {*} appNameOrConfig 应用名称或者应用配置对象
- * @param {*} appOrLoadApp 应用的加载方法，是一个 promise
- * @param {*} activeWhen 判断应用是否激活的一个方法，方法返回 true or false
- * @param {*} customProps 传递给子应用的 props 对象
+ * @param {*} appNameOrConfig name 应用名称或者应用配置对象
+ * @param {*} appOrLoadApp loadApp 应用的加载方法，是一个 promise
+ * @param {*} activeWhen activeWhen 判断应用是否激活的一个方法，方法返回 true or false
+ * @param {*} customProps customProps 传递给子应用的 props 对象
  */
 export function registerApplication(
   appNameOrConfig,

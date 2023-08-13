@@ -18,6 +18,11 @@ export function isActive(app) {
   return app.status === MOUNTED;
 }
 
+/**
+ * 通过 activeWhen 方法判断是否是 active 状态
+ * @param {*} app 
+ * @returns 
+ */
 export function shouldBeActive(app) {
   try {
     return app.activeWhen(window.location);
