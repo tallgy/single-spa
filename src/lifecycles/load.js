@@ -20,6 +20,12 @@ import {
 import { getProps } from "./prop.helpers.js";
 import { assign } from "../utils/assign.js";
 
+/**
+ * load app
+ * app.status not-loaded、load-error 变成 loading-source-code
+ * @param {*} app 
+ * @returns { app } app
+ */
 export function toLoadPromise(app) {
   return Promise.resolve().then(() => {
     if (app.loadPromise) {
@@ -37,20 +43,9 @@ export function toLoadPromise(app) {
     return (app.loadPromise = Promise.resolve()
       .then(() => {
         const loadPromise = app.loadApp(getProps(app));
-        if (!smellsLikeAPromise(loadPromise)) {
-          // The name of the app will be prepended to this error message inside of the handleAppError function
-          isUserErr = true;
-          throw Error(
-            formatErrorMessage(
-              33,
-              __DEV__ &&
-                `single-spa loading function did not return a promise. Check the second argument to registerApplication('${toName(
-                  app
-                )}', loadingFunction, activityFunction)`,
-              toName(app)
-            )
-          );
-        }
+        
+        // if (typeof loadPromise !== Promise) { throw 错误 }
+
         return loadPromise.then((val) => {
           app.loadErrorTime = null;
 
@@ -58,59 +53,12 @@ export function toLoadPromise(app) {
 
           let validationErrMessage, validationErrCode;
 
-          if (typeof appOpts !== "object") {
-            validationErrCode = 34;
-            if (__DEV__) {
-              validationErrMessage = `does not export anything`;
-            }
-          }
-
-          if (
-            // ES Modules don't have the Object prototype
-            Object.prototype.hasOwnProperty.call(appOpts, "bootstrap") &&
-            !validLifecycleFn(appOpts.bootstrap)
-          ) {
-            validationErrCode = 35;
-            if (__DEV__) {
-              validationErrMessage = `does not export a valid bootstrap function or array of functions`;
-            }
-          }
-
-          if (!validLifecycleFn(appOpts.mount)) {
-            validationErrCode = 36;
-            if (__DEV__) {
-              validationErrMessage = `does not export a mount function or array of functions`;
-            }
-          }
-
-          if (!validLifecycleFn(appOpts.unmount)) {
-            validationErrCode = 37;
-            if (__DEV__) {
-              validationErrMessage = `does not export a unmount function or array of functions`;
-            }
-          }
-
-          const type = objectType(appOpts);
-
+          // 满足下面 if validationErrCode validationErrMessage 会存在值
+          // if (typeof appOpts !== 'object') 
+          // if (!['fn', 'Array<fn>'].includes(typeof appOpts.bootstrap))
+          // if (!['fn', 'Array<fn>'].includes(typeof appOpts.mount))
+          // if (!['fn', 'Array<fn>'].includes(typeof appOpts.unmount))
           if (validationErrCode) {
-            let appOptsStr;
-            try {
-              appOptsStr = JSON.stringify(appOpts);
-            } catch {}
-            console.error(
-              formatErrorMessage(
-                validationErrCode,
-                __DEV__ &&
-                  `The loading function for single-spa ${type} '${toName(
-                    app
-                  )}' resolved with the following, which does not have bootstrap, mount, and unmount functions`,
-                type,
-                toName(app),
-                appOptsStr
-              ),
-              appOpts
-            );
-            handleAppError(validationErrMessage, app, SKIP_BECAUSE_BROKEN);
             return app;
           }
 
