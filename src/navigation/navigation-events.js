@@ -107,6 +107,11 @@ function urlReroute() {
   reroute([], arguments);
 }
 
+/**
+ * @param {*} updateState 监听会执行的方法
+ * @param {*} methodName 监听的事件名称
+ * @returns 
+ */
 function patchedUpdateState(updateState, methodName) {
   return function () {
     const urlBefore = window.location.href;
